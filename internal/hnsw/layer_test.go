@@ -84,7 +84,7 @@ func TestSelectNeighbors_HeuristicPrefersDiversity(t *testing.T) {
 
 func TestSelectNeighbors_ReturnsAtMostM(t *testing.T) {
 	g := NewGraph(16, 200, 64, EuclideanDistance)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		g.nodes[i] = &Node{ID: i, Vector: []float32{float32(i), 0}}
 	}
 	candidates := []candidate{

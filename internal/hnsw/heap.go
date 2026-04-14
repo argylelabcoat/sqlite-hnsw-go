@@ -1,5 +1,7 @@
 package hnsw
 
+import "container/heap"
+
 type candidate struct {
 	id   int
 	dist float32
@@ -14,8 +16,12 @@ func (h *candidateMinHeap) Push(x any)        { *h = append(*h, x.(candidate)) }
 func (h *candidateMinHeap) Pop() any {
 	old := *h
 	n := len(old)
-	item := old[n-1]
+	item := old[0]
+	old[0] = old[n-1]
 	*h = old[:n-1]
+	if len(*h) > 0 {
+		heap.Fix(h, 0)
+	}
 	return item
 }
 
@@ -28,7 +34,11 @@ func (h *candidateMaxHeap) Push(x any)        { *h = append(*h, x.(candidate)) }
 func (h *candidateMaxHeap) Pop() any {
 	old := *h
 	n := len(old)
-	item := old[n-1]
+	item := old[0]
+	old[0] = old[n-1]
 	*h = old[:n-1]
+	if len(*h) > 0 {
+		heap.Fix(h, 0)
+	}
 	return item
 }

@@ -1,10 +1,30 @@
 package hnsw
 
+// deleteLocked removes a node from the graph without acquiring the mutex.
+// The caller must hold the lock.
 func (g *Graph) deleteLocked(id int) {
 	delete(g.nodes, id)
 }
 
+// Insert adds a new node with the given vector to the graph.
+//
+// Insertion follows the HNSW algorithm:
+//  1. Traversal: starting from the entry point, descend through layers
+//     selecting neighbors that are closer to the new vector until reaching
+//     the target layer.
+//  2. Layer insertion: for each layer from the node's level down to 0,
+//     search for candidate neighbors using efConstruct.
+//  3. Neighbor connection: connect the new node to the selected neighbors,
+//     and add the node as a reverse neighbor to each neighbor.
+//  4. Pruning: if any neighbor exceeds maxConn edges at a given layer,
+//     prune the weakest connections using selectNeighbors.
 func (g *Graph) Insert(id int, vec []float32) {
+	if g.m <= 0 {
+		g.m = 1
+	}
+	if g.efConstruct <= 0 {
+		g.efConstruct = 1
+	}
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
