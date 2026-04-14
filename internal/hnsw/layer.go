@@ -20,7 +20,16 @@ func (g *Graph) randomLevel() int {
 	return int(-math.Log(g.rng.Float64()) * mL)
 }
 
+// searchLayer performs a best-first search on a single graph layer.
+//
+// It starts from entryPoints and explores neighbors at the given level,
+// maintaining up to ef candidates in the result set ordered by distance.
+// The returned slice contains up to ef nearest neighbors sorted by distance.
 func (g *Graph) searchLayer(query []float32, entryPoints []int, ef int, level int) []candidate {
+	if ef <= 0 {
+		return nil
+	}
+
 	visited := make(map[int]bool)
 	candidates := &candidateMinHeap{}
 	results := &candidateMaxHeap{}
