@@ -37,3 +37,34 @@ func TestRandomLevel_DeterministicWithSeed(t *testing.T) {
 
 	assert.Equal(t, results1, results2, "same seed must produce same levels")
 }
+
+func TestSearchLayer_FindsClosestNodes(t *testing.T) {
+	g := testGraphTriangle()
+
+	query := []float32{1, 0}
+	results := g.searchLayer(query, []int{0}, 3, 0)
+
+	assert.Len(t, results, 3)
+	assert.Equal(t, 0, results[0].id, "node 0 (same as query) should be closest")
+	assert.InDelta(t, float32(0), results[0].dist, 1e-6)
+}
+
+func TestSearchLayer_StartsFromEntryPoint(t *testing.T) {
+	g := testGraphTriangle()
+
+	query := []float32{-1, 0}
+	results := g.searchLayer(query, []int{0}, 3, 0)
+
+	assert.Len(t, results, 3)
+	assert.Equal(t, 2, results[0].id, "node 2 ([-1,0]) should be closest to [-1,0] query")
+}
+
+func testGraphTriangle() *Graph {
+	g := NewGraph(16, 200, 64, CosineDistance)
+	g.nodes[0] = &Node{ID: 0, Vector: []float32{1, 0}, Level: 0, Edges: [][]int{{1, 2}}}
+	g.nodes[1] = &Node{ID: 1, Vector: []float32{0, 1}, Level: 0, Edges: [][]int{{0, 2}}}
+	g.nodes[2] = &Node{ID: 2, Vector: []float32{-1, 0}, Level: 0, Edges: [][]int{{0, 1}}}
+	g.entryPoint = 0
+	g.maxLevel = 0
+	return g
+}
