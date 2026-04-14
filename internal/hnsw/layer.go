@@ -85,6 +85,18 @@ func (g *Graph) searchLayer(query []float32, entryPoints []int, ef int, level in
 	return out
 }
 
+// selectNeighbors selects up to m neighbors from candidates using distance-based
+// ordering and a diversity heuristic.
+//
+// Candidates are sorted by distance to query, then evaluated in order. A candidate
+// is selected only if it is sufficiently far from all already-selected neighbors
+// (distToSelected >= candidate's own distance to query). This enforces that selected
+// neighbors are approximately equidistant from the query point, improving recall
+// by avoiding redundant coverage of the same region.
+//
+// If fewer than m candidates satisfy the diversity heuristic, the remaining slots
+// are filled from the discarded candidates (closest rejects) to ensure we return
+// exactly m neighbors when possible.
 func (g *Graph) selectNeighbors(query []float32, candidates []candidate, m int) []candidate {
 	sort.Slice(candidates, func(i, j int) bool {
 		return candidates[i].dist < candidates[j].dist
@@ -116,6 +128,8 @@ func (g *Graph) selectNeighbors(query []float32, candidates []candidate, m int) 
 		}
 	}
 
+	// Fallback: if we have fewer than m selected, fill from discarded candidates.
+	// These are the closest rejects and are the best available alternatives.
 	for _, d := range discarded {
 		if len(selected) >= m {
 			break
