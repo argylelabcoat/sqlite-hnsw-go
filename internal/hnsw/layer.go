@@ -84,3 +84,44 @@ func (g *Graph) searchLayer(query []float32, entryPoints []int, ef int, level in
 	sort.Slice(out, func(i, j int) bool { return out[i].dist < out[j].dist })
 	return out
 }
+
+func (g *Graph) selectNeighbors(query []float32, candidates []candidate, m int) []candidate {
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].dist < candidates[j].dist
+	})
+
+	var selected []candidate
+	var discarded []candidate
+
+	for _, c := range candidates {
+		if len(selected) >= m {
+			break
+		}
+		node, ok := g.nodes[c.id]
+		if !ok {
+			continue
+		}
+		good := true
+		for _, s := range selected {
+			distToSelected := g.dist(node.Vector, g.nodes[s.id].Vector)
+			if distToSelected < c.dist {
+				good = false
+				break
+			}
+		}
+		if good {
+			selected = append(selected, c)
+		} else {
+			discarded = append(discarded, c)
+		}
+	}
+
+	for _, d := range discarded {
+		if len(selected) >= m {
+			break
+		}
+		selected = append(selected, d)
+	}
+
+	return selected
+}

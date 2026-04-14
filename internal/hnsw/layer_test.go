@@ -59,6 +59,42 @@ func TestSearchLayer_StartsFromEntryPoint(t *testing.T) {
 	assert.Equal(t, 2, results[0].id, "node 2 ([-1,0]) should be closest to [-1,0] query")
 }
 
+func TestSelectNeighbors_HeuristicPrefersDiversity(t *testing.T) {
+	g := NewGraph(16, 200, 64, EuclideanDistance)
+	g.nodes[0] = &Node{ID: 0, Vector: []float32{1, 0}}
+	g.nodes[1] = &Node{ID: 1, Vector: []float32{0.9, 0.1}}
+	g.nodes[2] = &Node{ID: 2, Vector: []float32{0, 1}}
+
+	query := []float32{0, 0}
+	candidates := []candidate{
+		{id: 1, dist: EuclideanDistance(query, g.nodes[1].Vector)},
+		{id: 0, dist: EuclideanDistance(query, g.nodes[0].Vector)},
+		{id: 2, dist: EuclideanDistance(query, g.nodes[2].Vector)},
+	}
+
+	result := g.selectNeighbors(query, candidates, 2)
+
+	assert.Len(t, result, 2)
+	ids := make(map[int]bool)
+	for _, r := range result {
+		ids[r.id] = true
+	}
+	assert.True(t, ids[2], "heuristic should select diverse node 2 over clustered nodes")
+}
+
+func TestSelectNeighbors_ReturnsAtMostM(t *testing.T) {
+	g := NewGraph(16, 200, 64, EuclideanDistance)
+	for i := 0; i < 5; i++ {
+		g.nodes[i] = &Node{ID: i, Vector: []float32{float32(i), 0}}
+	}
+	candidates := []candidate{
+		{id: 0, dist: 0}, {id: 1, dist: 1}, {id: 2, dist: 2},
+		{id: 3, dist: 3}, {id: 4, dist: 4},
+	}
+	result := g.selectNeighbors([]float32{0, 0}, candidates, 3)
+	assert.Len(t, result, 3)
+}
+
 func testGraphTriangle() *Graph {
 	g := NewGraph(16, 200, 64, CosineDistance)
 	g.nodes[0] = &Node{ID: 0, Vector: []float32{1, 0}, Level: 0, Edges: [][]int{{1, 2}}}
