@@ -56,3 +56,68 @@ func TestBM25Search_TopK(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, results, 5)
 }
+
+func TestBM25SearchOpts_PhraseMatch(t *testing.T) {
+	s := testStore(t, 4)
+	defer s.Close()
+
+	require.NoError(t, s.Upsert([]Point{
+		{ID: 1, Vector: []float32{1, 0, 0, 0}, Content: "File Manager handles files"},
+		{ID: 2, Vector: []float32{0, 1, 0, 0}, Content: "the file is managed by the system"},
+	}))
+
+	results, err := s.BM25SearchOpts("file manager", SearchOptions{
+		TopK:   10,
+		Phrase: true,
+	})
+	require.NoError(t, err)
+
+	ids := make(map[int]bool)
+	for _, r := range results {
+		ids[r.RowID] = true
+	}
+	assert.True(t, ids[1], "exact phrase 'file manager' should match doc 1")
+}
+
+func TestBM25SearchOpts_Prefix(t *testing.T) {
+	s := testStore(t, 4)
+	defer s.Close()
+
+	require.NoError(t, s.Upsert([]Point{
+		{ID: 1, Vector: []float32{1, 0, 0, 0}, Content: "Draw1Control"},
+		{ID: 2, Vector: []float32{0, 1, 0, 0}, Content: "DrawWindow"},
+		{ID: 3, Vector: []float32{0, 0, 1, 0}, Content: "CreateWindow"},
+	}))
+
+	results, err := s.BM25SearchOpts("Draw", SearchOptions{
+		TopK:   10,
+		Prefix: true,
+	})
+	require.NoError(t, err)
+
+	ids := make(map[int]bool)
+	for _, r := range results {
+		ids[r.RowID] = true
+	}
+	assert.True(t, ids[1], "Draw* should match Draw1Control")
+	assert.True(t, ids[2], "Draw* should match DrawWindow")
+}
+
+func TestBM25SearchOpts_BookFilter(t *testing.T) {
+	s := testStore(t, 4)
+	defer s.Close()
+
+	require.NoError(t, s.Upsert([]Point{
+		{ID: 1, Vector: []float32{1, 0, 0, 0}, Content: "Draw1Control", BookID: "book1"},
+		{ID: 2, Vector: []float32{0, 1, 0, 0}, Content: "Draw1Control", BookID: "book2"},
+	}))
+
+	results, err := s.BM25SearchOpts("Draw1Control", SearchOptions{
+		TopK:   10,
+		BookID: "book1",
+	})
+	require.NoError(t, err)
+
+	require.Len(t, results, 1)
+	assert.Equal(t, 1, results[0].RowID)
+}
