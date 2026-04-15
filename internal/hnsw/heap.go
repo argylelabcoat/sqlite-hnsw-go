@@ -16,13 +16,12 @@ func (h *candidateMinHeap) Push(x any)        { *h = append(*h, x.(candidate)) }
 func (h *candidateMinHeap) Pop() any {
 	old := *h
 	n := len(old)
-	item := old[0]
-	old[0] = old[n-1]
+	x := old[n-1]
 	*h = old[:n-1]
-	if len(*h) > 0 {
+	if h.Len() > 0 {
 		heap.Fix(h, 0)
 	}
-	return item
+	return x
 }
 
 type candidateMaxHeap []candidate
@@ -34,11 +33,10 @@ func (h *candidateMaxHeap) Push(x any)        { *h = append(*h, x.(candidate)) }
 func (h *candidateMaxHeap) Pop() any {
 	old := *h
 	n := len(old)
-	item := old[0]
-	old[0] = old[n-1]
+	x := old[n-1]
 	*h = old[:n-1]
-	if len(*h) > 0 {
+	if h.Len() > 0 {
 		heap.Fix(h, 0)
 	}
-	return item
+	return x
 }
