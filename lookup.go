@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 )
 
@@ -73,9 +74,7 @@ func (s *Store) GetPayload(rowid int) (map[string]any, error) {
 
 	var meta map[string]any
 	if len(metaJSON) > 0 && json.Unmarshal(metaJSON, &meta) == nil {
-		for k, v := range meta {
-			payload[k] = v
-		}
+		maps.Copy(payload, meta)
 	}
 
 	return payload, nil
@@ -133,4 +132,84 @@ func (s *Store) GetPayloads(rowids []int) (map[int]map[string]any, error) {
 		result[id] = payload
 	}
 	return result, nil
+}
+
+func (s *Store) LookupEntity(name string) ([]int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.closed {
+		return nil, ErrStoreClosed
+	}
+
+	rows, err := s.db.Query(
+		"SELECT rowid FROM vectors WHERE entity_name = ?", name,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("lookup entity: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []int
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("lookup entity: scan: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+func (s *Store) LookupManager(manager string) ([]int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.closed {
+		return nil, ErrStoreClosed
+	}
+
+	rows, err := s.db.Query(
+		"SELECT rowid FROM vectors WHERE manager = ?", manager,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("lookup manager: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []int
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("lookup manager: scan: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+func (s *Store) LookupByFilter(where string, args ...any) ([]int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.closed {
+		return nil, ErrStoreClosed
+	}
+
+	query := "SELECT rowid FROM vectors WHERE " + where
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("lookup by filter: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []int
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("lookup by filter: scan: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
 }
