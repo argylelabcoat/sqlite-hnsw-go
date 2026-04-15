@@ -53,3 +53,33 @@ func (g *Graph) Serialize() ([]byte, error) {
 	}
 	return data, nil
 }
+
+// Deserialize decodes a CBOR byte slice produced by Serialize and replaces
+// the graph contents. The graph is fully usable after deserialization.
+func (g *Graph) Deserialize(data []byte) error {
+	var snap graphSnapshot
+	if err := cbor.Unmarshal(data, &snap); err != nil {
+		return fmt.Errorf("deserialize HNSW graph: %w", err)
+	}
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	g.entryPoint = snap.EntryPoint
+	g.maxLevel = snap.MaxLevel
+	g.m = snap.M
+	g.efConstruct = snap.EfConstruct
+	g.efSearch = snap.EfSearch
+	g.nodes = make(map[int]*Node, len(snap.Nodes))
+
+	for _, ns := range snap.Nodes {
+		g.nodes[ns.ID] = &Node{
+			ID:     ns.ID,
+			Vector: ns.Vector,
+			Level:  ns.Level,
+			Edges:  ns.Edges,
+		}
+	}
+
+	return nil
+}
