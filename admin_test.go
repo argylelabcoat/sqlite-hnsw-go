@@ -51,3 +51,16 @@ func TestStats_ReturnsCorrectCount(t *testing.T) {
 	assert.Equal(t, 1, stats.TotalDocuments)
 	assert.Equal(t, 1, stats.HNSWGraphEntries)
 }
+
+func TestOptimize_CompletesWithoutError(t *testing.T) {
+	s := testStore(t, 4)
+	defer s.Close()
+
+	require.NoError(t, s.Upsert([]Point{
+		{Vector: []float32{1, 0, 0, 0}, Content: "doc 1"},
+		{Vector: []float32{0, 1, 0, 0}, Content: "doc 2"},
+	}))
+
+	err := s.Optimize()
+	assert.NoError(t, err)
+}

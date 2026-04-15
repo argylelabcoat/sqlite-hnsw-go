@@ -2,6 +2,7 @@ package sqlitehnsw
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/macintosh-codex/sqlite-hnsw/internal/hnsw"
 )
@@ -59,4 +60,23 @@ func (s *Store) Stats() (StoreStats, error) {
 		s.cfg.Collection).Scan(&stats.HNSWGraphVersion)
 
 	return stats, nil
+}
+
+func (s *Store) Optimize() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.closed {
+		return ErrStoreClosed
+	}
+
+	if _, err := s.db.Exec("INSERT INTO fts_content(fts_content) VALUES('optimize')"); err != nil {
+		return fmt.Errorf("optimize fts5: %w", err)
+	}
+
+	if _, err := s.db.Exec("VACUUM"); err != nil {
+		return fmt.Errorf("optimize vacuum: %w", err)
+	}
+
+	return nil
 }
