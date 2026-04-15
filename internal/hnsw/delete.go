@@ -34,13 +34,18 @@ func (g *Graph) deleteLocked(id int) {
 	delete(g.nodes, id)
 
 	if g.entryPoint == id {
-		g.entryPoint = 0
-		g.maxLevel = 0
+		newMaxLevel := -1
 		for _, n := range g.nodes {
-			if n.Level > g.maxLevel {
-				g.maxLevel = n.Level
+			if n.Level > newMaxLevel {
+				newMaxLevel = n.Level
 				g.entryPoint = n.ID
 			}
+		}
+		if newMaxLevel >= 0 {
+			g.maxLevel = newMaxLevel
+		} else {
+			g.entryPoint = 0
+			g.maxLevel = 0
 		}
 	}
 }
