@@ -1,11 +1,5 @@
 package hnsw
 
-// deleteLocked removes a node from the graph without acquiring the mutex.
-// The caller must hold the lock.
-func (g *Graph) deleteLocked(id int) {
-	delete(g.nodes, id)
-}
-
 // Insert adds a new node with the given vector to the graph.
 //
 // Insertion follows the HNSW algorithm:
