@@ -188,6 +188,35 @@ func (s *Store) LookupManager(manager string) ([]int, error) {
 	return ids, nil
 }
 
+// GetMetaField returns a map of rowID → value for a single JSON field in the meta column.
+// field must be a trusted constant (it is interpolated directly into the SQL query).
+func (s *Store) GetMetaField(field string) (map[int]string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.closed {
+		return nil, ErrStoreClosed
+	}
+
+	query := "SELECT rowid, json_extract(meta, '$." + field + "') FROM vectors WHERE json_extract(meta, '$." + field + "') IS NOT NULL"
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("get meta field %q: %w", field, err)
+	}
+	defer rows.Close()
+
+	result := make(map[int]string)
+	for rows.Next() {
+		var rowID int
+		var val string
+		if err := rows.Scan(&rowID, &val); err != nil {
+			return nil, fmt.Errorf("get meta field %q: scan: %w", field, err)
+		}
+		result[rowID] = val
+	}
+	return result, nil
+}
+
 func (s *Store) LookupByFilter(where string, args ...any) ([]int, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

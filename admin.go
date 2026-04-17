@@ -62,6 +62,25 @@ func (s *Store) Stats() (StoreStats, error) {
 	return stats, nil
 }
 
+// Reset deletes all vectors and clears the HNSW graph, returning the store to an empty state.
+func (s *Store) Reset() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.closed {
+		return ErrStoreClosed
+	}
+
+	if _, err := s.db.Exec("DELETE FROM vectors"); err != nil {
+		return fmt.Errorf("reset: delete vectors: %w", err)
+	}
+
+	distFunc := newDistanceFunc(s.cfg.Metric)
+	s.graph = hnsw.NewGraph(s.cfg.M, s.cfg.EfConstruction, s.cfg.EfSearch, distFunc)
+
+	return s.flushGraphLocked()
+}
+
 func (s *Store) Optimize() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

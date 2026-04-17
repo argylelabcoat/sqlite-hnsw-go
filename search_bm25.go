@@ -4,6 +4,8 @@ import (
 	"fmt"
 )
 
+// BM25Search performs full-text search over the content table.
+// Returns content IDs (from the content table), not vector rowids.
 func (s *Store) BM25Search(query string, topK int) ([]BM25Result, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -17,9 +19,9 @@ func (s *Store) BM25Search(query string, topK int) ([]BM25Result, error) {
 	}
 
 	rows, err := s.db.Query(`
-		SELECT rowid, bm25(fts_content) AS score
-		FROM fts_content
-		WHERE fts_content MATCH ?
+		SELECT rowid, bm25(fts_chapters) AS score
+		FROM fts_chapters
+		WHERE fts_chapters MATCH ?
 		ORDER BY score
 		LIMIT ?`, query, topK)
 	if err != nil {
@@ -38,6 +40,7 @@ func (s *Store) BM25Search(query string, topK int) ([]BM25Result, error) {
 	return results, nil
 }
 
+// BM25SearchOpts performs filtered BM25 search over the content table.
 func (s *Store) BM25SearchOpts(query string, opts SearchOptions) ([]BM25Result, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -58,14 +61,14 @@ func (s *Store) BM25SearchOpts(query string, opts SearchOptions) ([]BM25Result, 
 	}
 
 	sqlQuery := `
-		SELECT f.rowid, bm25(fts_content) AS score
-		FROM fts_content f
-		JOIN vectors v ON f.rowid = v.rowid
-		WHERE f.fts_content MATCH ?`
+		SELECT f.rowid, bm25(fts_chapters) AS score
+		FROM fts_chapters f
+		JOIN content c ON f.rowid = c.id
+		WHERE f.fts_chapters MATCH ?`
 	args := []any{ftsQuery}
 
 	if opts.BookID != "" {
-		sqlQuery += " AND v.book_id = ?"
+		sqlQuery += " AND c.book_id = ?"
 		args = append(args, opts.BookID)
 	}
 

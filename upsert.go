@@ -26,16 +26,17 @@ func (s *Store) Upsert(points []Point) error {
 
 	stmt, err := tx.Prepare(`
 		INSERT OR REPLACE INTO vectors
-			(rowid, vec, content, meta, book_id, chapter_file, title,
+			(rowid, vec, meta, book_id, chapter_file, title,
 			 entity_name, entity_kind, manager, return_type, trap_id,
-			 header_file, availability)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+			 header_file, availability, content_id, chunk_start, chunk_end)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return fmt.Errorf("upsert: prepare: %w", err)
 	}
 	defer stmt.Close()
 
-	for _, p := range points {
+	for i := range points {
+		p := &points[i]
 		if len(p.Vector) != s.cfg.Dimension {
 			return fmt.Errorf("upsert point: %w: got %d, want %d",
 				ErrDimensionMismatch, len(p.Vector), s.cfg.Dimension)
@@ -52,10 +53,19 @@ func (s *Store) Upsert(points []Point) error {
 		}
 		encoded := encodeVector(p.Vector)
 
-		result, err := stmt.Exec(id, encoded, p.Content, metaJSON,
+		var contentID, chunkStart, chunkEnd any
+		if p.ContentID != 0 {
+			contentID = p.ContentID
+		}
+		if p.ChunkStart != 0 || p.ChunkEnd != 0 {
+			chunkStart = p.ChunkStart
+			chunkEnd = p.ChunkEnd
+		}
+
+		result, err := stmt.Exec(id, encoded, metaJSON,
 			p.BookID, p.ChapterFile, p.Title,
 			p.EntityName, p.EntityKind, p.Manager, p.ReturnType, p.TrapID,
-			p.HeaderFile, p.Availability)
+			p.HeaderFile, p.Availability, contentID, chunkStart, chunkEnd)
 		if err != nil {
 			return fmt.Errorf("upsert: insert: %w", err)
 		}

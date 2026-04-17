@@ -4,7 +4,6 @@ package sqlitehnsw
 type Point struct {
 	ID           int            // Leave 0 for auto-assign, or set explicitly
 	Vector       []float32      // Embedding vector (required)
-	Content      string         // Full text for FTS5 indexing
 	Meta         map[string]any // Flexible metadata stored as JSON
 	EntityName   string         // Denormalized filter column
 	EntityKind   string         // Denormalized filter column
@@ -16,6 +15,9 @@ type Point struct {
 	BookID       string         // Denormalized filter column
 	ChapterFile  string         // Denormalized filter column
 	Title        string         // Denormalized filter column
+	ContentID    int            // FK → content.id (0 = not set)
+	ChunkStart   int            // Byte offset in content.text (0 = not set)
+	ChunkEnd     int            // Byte offset end in content.text (0 = not set)
 }
 
 // SearchResult is returned by Store.Search.
@@ -28,14 +30,6 @@ type SearchResult struct {
 type BM25Result struct {
 	RowID int
 	Score float64 // BM25 score (more negative = better per SQLite convention)
-}
-
-// HybridSearchResult is a fused result from vector + BM25 search.
-type HybridSearchResult struct {
-	RowID      int
-	RRFScore   float64
-	VectorRank int // 1-based, 0 if absent from vector results
-	BM25Rank   int // 1-based, 0 if absent from BM25 results
 }
 
 // SearchOptions controls BM25 query behavior.

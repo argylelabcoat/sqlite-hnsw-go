@@ -49,10 +49,11 @@ func initSchema(db *sql.DB) error {
 		)`,
 
 		// ── Vectors table ──────────────────────────────────────────────────────
+		// Chunk text is NOT stored here — it lives in content.text and is
+		// extracted on demand via chunk_start / chunk_end byte offsets.
 		`CREATE TABLE IF NOT EXISTS vectors (
 			rowid        INTEGER PRIMARY KEY,
 			vec          BLOB NOT NULL,
-			content      TEXT,
 			meta         JSON,
 			content_id   INTEGER REFERENCES content(id),
 			chunk_start  INTEGER,
@@ -77,24 +78,6 @@ func initSchema(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_book_chapter ON vectors(book_id, chapter_file)`,
 		`CREATE INDEX IF NOT EXISTS idx_content_id   ON vectors(content_id)   WHERE content_id   IS NOT NULL`,
 
-		// Chunk-level FTS5.
-		`CREATE VIRTUAL TABLE IF NOT EXISTS fts_content USING fts5(
-			content,
-			content='vectors',
-			content_rowid='rowid',
-			tokenize='porter unicode61'
-		)`,
-		`CREATE TRIGGER IF NOT EXISTS vectors_ai AFTER INSERT ON vectors BEGIN
-			INSERT INTO fts_content(rowid, content) VALUES (new.rowid, new.content);
-		END`,
-		`CREATE TRIGGER IF NOT EXISTS vectors_ad AFTER DELETE ON vectors BEGIN
-			INSERT INTO fts_content(fts_content, rowid, content) VALUES('delete', old.rowid, old.content);
-		END`,
-		`CREATE TRIGGER IF NOT EXISTS vectors_au AFTER UPDATE ON vectors BEGIN
-			INSERT INTO fts_content(fts_content, rowid, content) VALUES('delete', old.rowid, old.content);
-			INSERT INTO fts_content(rowid, content) VALUES (new.rowid, new.content);
-		END`,
-
 		// ── HNSW graph persistence ─────────────────────────────────────────────
 		`CREATE TABLE IF NOT EXISTS hnsw_graph (
 			collection      TEXT    NOT NULL PRIMARY KEY,
@@ -115,15 +98,20 @@ func initSchema(db *sql.DB) error {
 		}
 	}
 
-	// Migrations for existing databases: add columns silently if absent.
+	// Migrations for existing databases.
 	migrations := []string{
 		`ALTER TABLE vectors ADD COLUMN content_id  INTEGER`,
 		`ALTER TABLE vectors ADD COLUMN chunk_start INTEGER`,
 		`ALTER TABLE vectors ADD COLUMN chunk_end   INTEGER`,
 		`ALTER TABLE content ADD COLUMN embedded INTEGER NOT NULL DEFAULT 0`,
+		// Drop the now-unused chunk-level FTS5 and its triggers.
+		`DROP TABLE IF EXISTS fts_content`,
+		`DROP TRIGGER IF EXISTS vectors_ai`,
+		`DROP TRIGGER IF EXISTS vectors_ad`,
+		`DROP TRIGGER IF EXISTS vectors_au`,
 	}
 	for _, m := range migrations {
-		db.Exec(m) // ignore "duplicate column" errors
+		db.Exec(m) // ignore "already exists" / "does not exist" errors
 	}
 
 	return nil
